@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Network } from 'vis-network';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 export default function App() {
     const [graphData, setGraphData] = useState({ nodes: [], links: [] });
     const [skillGap, setSkillGap] = useState(null);
