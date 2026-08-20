@@ -15,10 +15,47 @@ const driver = neo4j.driver(
     neo4j.auth.basic(process.env.COGNODB_USERNAME, process.env.COGNODB_PASSWORD)
 );
 
+// Helper function to seed sample data if DB is empty
+const seedDatabaseIfEmpty = async (session) => {
+    const check = await session.run('MATCH (n) RETURN count(n) AS count');
+    const count = check.records[0].get('count').toNumber();
+
+    if (count === 0) {
+        console.log('Database empty. Seeding sample SkillGraph dataset...');
+        await session.run(`
+      CREATE (dev:Developer {name: "Alex Johnson"})
+      CREATE (role1:JobRole {title: "Graph Database Developer"})
+      CREATE (role2:JobRole {title: "Full Stack Engineer"})
+      
+      CREATE (s1:Skill {name: "Cypher"})
+      CREATE (s2:Skill {name: "Neo4j"})
+      CREATE (s3:Skill {name: "React"})
+      CREATE (s4:Skill {name: "Node.js"})
+      CREATE (s5:Skill {name: "Graph Theory"})
+
+      CREATE (dev)-[:HAS_SKILL]->(s1)
+      CREATE (dev)-[:HAS_SKILL]->(s3)
+      CREATE (dev)-[:HAS_SKILL]->(s4)
+
+      CREATE (role1)-[:REQUIRES]->(s1)
+      CREATE (role1)-[:REQUIRES]->(s2)
+      CREATE (role1)-[:REQUIRES]->(s5)
+
+      CREATE (role2)-[:REQUIRES]->(s3)
+      CREATE (role2)-[:REQUIRES]->(s4)
+
+      CREATE (s2)-[:RELATED_TO]->(s1)
+    `);
+        console.log('Seeding complete!');
+    }
+};
+
 // 1. Fetch entire graph for canvas visualization
 app.get('/api/graph', async (req, res) => {
     const session = driver.session();
     try {
+        await seedDatabaseIfEmpty(session);
+
         const result = await session.run(`
       MATCH (n)
       OPTIONAL MATCH (n)-[r]->(m)
