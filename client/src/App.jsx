@@ -27,7 +27,7 @@ export default function App() {
             setGraphData(data);
         } catch (err) {
             console.error('Failed to load graph:', err);
-            setErrorMessage('Could not connect to Render backend or CognoDB. Ensure backend is active.');
+            setErrorMessage('Could not connect to Render backend or CognoDB.');
         } finally {
             setLoading(false);
         }
@@ -44,12 +44,8 @@ export default function App() {
 
     // vis-network initialization logic
     useEffect(() => {
-        if (networkRef.current) {
-            // Use API data or fallback sample nodes if database is empty
-            const rawNodes = graphData.nodes?.length > 0 ? graphData.nodes : [];
-            const rawLinks = graphData.links?.length > 0 ? graphData.links : [];
-
-            const visNodes = rawNodes.map((node, index) => {
+        if (networkRef.current && graphData.nodes?.length > 0) {
+            const visNodes = graphData.nodes.map((node) => {
                 const label = node.labels?.[0] || 'Node';
                 let color = '#6366f1';
                 if (label === 'Developer') color = '#3b82f6';
@@ -57,18 +53,20 @@ export default function App() {
                 if (label === 'JobRole') color = '#f59e0b';
                 if (label === 'Project') color = '#ec4899';
 
+                const nodeName = node.properties?.name || node.properties?.title || 'Entity';
+
                 return {
-                    id: String(node.id || index + 1),
-                    label: `${node.properties?.name || node.properties?.title || 'Entity'}\n(${label})`,
+                    id: String(node.id),
+                    label: `${nodeName}\n(${label})`,
                     color: { background: color, border: '#ffffff' },
-                    font: { color: '#ffffff', size: 13 },
+                    font: { color: '#ffffff', size: 14 },
                     shape: 'box',
                     margin: 10,
                 };
             });
 
-            const visEdges = rawLinks.map((link, index) => ({
-                id: `e-${index}`,
+            const visEdges = graphData.links.map((link) => ({
+                id: String(link.id),
                 from: String(link.source),
                 to: String(link.target),
                 label: link.type || '',
@@ -85,7 +83,7 @@ export default function App() {
                 edges: { smooth: { type: 'continuous' } },
                 physics: {
                     enabled: true,
-                    barnesHut: { gravitationalConstant: -2000, springLength: 100 },
+                    barnesHut: { gravitationalConstant: -2000, springLength: 120 },
                 },
                 interaction: { hover: true },
             };
@@ -101,93 +99,84 @@ export default function App() {
     }, [graphData]);
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
-            <header className="mb-6 flex flex-col md:flex-row justify-between md:items-center border-b border-slate-800 pb-4 gap-4">
+        <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', padding: '24px', fontFamily: 'sans-serif' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '16px', marginBottom: '24px' }}>
                 <div>
-                    <h1 className="text-2xl font-bold text-indigo-400">SkillGraph Navigator</h1>
-                    <p className="text-slate-400 text-xs mt-1">
+                    <h1 style={{ margin: 0, fontSize: '24px', color: '#818cf8' }}>SkillGraph Navigator</h1>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
                         AI-Powered Career Pathway & 2-Hop Knowledge Graph Traversal
                     </p>
                 </div>
                 <button
                     onClick={loadGraph}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-lg self-start md:self-auto"
+                    style={{ backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
                     🔄 Reload Graph
                 </button>
             </header>
 
             {errorMessage && (
-                <div className="mb-4 p-3 bg-rose-950/80 border border-rose-800 rounded-lg text-rose-300 text-xs">
+                <div style={{ padding: '12px', backgroundColor: '#4c0519', border: '1px solid #9f1239', borderRadius: '6px', color: '#fecdd3', fontSize: '14px', marginBottom: '16px' }}>
                     🚨 {errorMessage}
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Interactive Visual Canvas Container */}
-                <div className="lg:col-span-2 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex flex-col">
-                    <div className="flex justify-between items-center mb-3">
-                        <h2 className="text-md font-bold text-slate-200">Interactive Visual Graph Canvas</h2>
-                        {loading && <span className="text-indigo-400 text-xs animate-pulse">Loading CognoDB...</span>}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+                {/* Visual Graph View */}
+                <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h2 style={{ margin: 0, fontSize: '16px', color: '#f1f5f9' }}>Interactive Visual Graph Canvas</h2>
+                        {loading && <span style={{ color: '#818cf8', fontSize: '12px' }}>Loading...</span>}
                     </div>
 
-                    {/* Enforced explicit inline styles prevent container collapse */}
                     <div
                         ref={networkRef}
                         style={{
-                            height: '500px',
+                            height: '520px',
                             width: '100%',
-                            minHeight: '500px',
-                            backgroundColor: '#0f172a',
+                            backgroundColor: '#020617',
                             borderRadius: '8px',
-                            border: '1px solid #334155',
-                            display: 'block',
+                            border: '1px solid #1e293b',
                         }}
                     />
                 </div>
 
-                {/* 2-Hop Traversal Skill Gap Panel */}
-                <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                {/* Skill Gap Side Panel */}
+                <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
-                        <h2 className="text-md font-bold text-indigo-300 mb-1">Skill Gap Analysis</h2>
-                        <p className="text-[11px] text-slate-400 mb-4">
-                            2-hop parameterized query executing over <code className="text-indigo-400">REQUIRES</code> and <code className="text-indigo-400">RELATED_TO</code> paths.
+                        <h2 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#a5b4fc' }}>Skill Gap Analysis</h2>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#94a3b8' }}>
+                            2-hop parameterized query executing over REQUIRES and RELATED_TO paths.
                         </p>
 
-                        <div className="mb-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
-                            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Target Job Role:</label>
+                        <div style={{ backgroundColor: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '16px' }}>
+                            <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>Target Job Role:</label>
                             <select
                                 value={selectedRole}
                                 onChange={(e) => setSelectedRole(e.target.value)}
-                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '8px', fontSize: '13px' }}
                             >
                                 <option value="Graph Database Developer">Graph Database Developer</option>
                                 <option value="Full Stack Engineer">Full Stack Engineer</option>
                             </select>
                         </div>
 
-                        <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
                             {skillGap?.skillGaps?.length > 0 ? (
                                 skillGap.skillGaps.map((gap, i) => (
-                                    <div key={i} className="bg-slate-900/80 p-3 rounded-lg border border-rose-900/40 text-xs">
-                                        <span className="font-semibold text-rose-400">⚠️ Missing: {gap.missingSkill}</span>
-                                        {gap.prerequisites?.length > 0 && (
-                                            <p className="text-[11px] text-slate-400 mt-1">
-                                                💡 Prerequisites: {gap.prerequisites.join(', ')}
-                                            </p>
-                                        )}
+                                    <div key={i} style={{ backgroundColor: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #881337', fontSize: '12px', color: '#fb7185' }}>
+                                        ⚠️ Missing: {gap.missingSkill}
                                     </div>
                                 ))
                             ) : (
-                                <div className="bg-emerald-950/30 p-3.5 rounded-lg border border-emerald-800/50 text-center">
-                                    <p className="text-emerald-400 text-xs font-medium">✨ No missing skills found!</p>
-                                    <p className="text-[10px] text-slate-400 mt-1">Developer satisfies all role criteria.</p>
+                                <div style={{ backgroundColor: '#064e3b', padding: '12px', borderRadius: '6px', border: '1px solid #047857', textAlign: 'center' }}>
+                                    <p style={{ margin: 0, color: '#34d399', fontSize: '13px', fontWeight: 'bold' }}>✨ No missing skills found!</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-700 text-[10px] text-slate-400 flex justify-between">
+                    <div style={{ borderTop: '1px solid #334155', paddingTop: '12px', fontSize: '11px', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
                         <span>Database: <strong>CognoDB Cloud</strong></span>
                         <span>Query: <strong>Parameterized Cypher</strong></span>
                     </div>
