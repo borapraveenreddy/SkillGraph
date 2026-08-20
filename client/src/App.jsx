@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { Network } from 'vis-network';
-
-// Ensure URL format is clean
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+import { getGraphData, getSkillGap } from './api';
+import 'vis-network/styles/vis-network.css';
 
 export default function App() {
     const [graphData, setGraphData] = useState({ nodes: [], links: [] });
@@ -14,155 +12,175 @@ export default function App() {
     const networkRef = useRef(null);
 
     useEffect(() => {
-        fetchGraph();
+        loadGraph();
     }, []);
 
     useEffect(() => {
-        fetchSkillGap();
+        loadSkillGap();
     }, [selectedRole]);
 
-    useEffect(() => {
-        // Only initialize network if nodes exist and DOM ref is ready
-        if (graphData.nodes && graphData.nodes.length > 0 && networkRef.current) {
-            try {
-                const visNodes = graphData.nodes.map((node) => {
-                    const label = node.labels?.[0] || 'Node';
-                    let color = '#6366f1';
-                    if (label === 'Developer') color = '#3b82f6';
-                    if (label === 'Skill') color = '#10b981';
-                    if (label === 'JobRole') color = '#f59e0b';
-                    if (label === 'Project') color = '#ec4899';
-
-                    return {
-                        id: node.id,
-                        label: `${node.properties?.name || node.properties?.title || 'Unnamed'}\n(${label})`,
-                        color: { background: color, border: '#ffffff' },
-                        font: { color: '#ffffff', size: 14 },
-                        shape: 'box',
-                        margin: 10,
-                    };
-                });
-
-                const visEdges = graphData.links.map((link) => ({
-                    from: link.source,
-                    to: link.target,
-                    label: link.type || '',
-                    font: { color: '#94a3b8', size: 10, align: 'top' },
-                    arrows: 'to',
-                    color: { color: '#475569' },
-                }));
-
-                const options = {
-                    nodes: { borderWidth: 2, shadow: true },
-                    edges: { smooth: { type: 'continuous' } },
-                    physics: {
-                        stabilization: false,
-                        barnesHut: { gravitationalConstant: -3000, springLength: 120 },
-                    },
-                    interaction: { hover: true },
-                };
-
-                new Network(networkRef.current, { nodes: visNodes, edges: visEdges }, options);
-            } catch (err) {
-                console.error('Failed to render Vis Network:', err);
-                setErrorMessage('Failed to render graph visualization.');
-            }
-        }
-    }, [graphData]);
-
-    const fetchGraph = async () => {
+    const loadGraph = async () => {
         setLoading(true);
         setErrorMessage(null);
         try {
-            const res = await axios.get(`${API_BASE_URL}/api/graph`);
-            setGraphData(res.data);
+            const data = await getGraphData();
+            setGraphData(data);
         } catch (err) {
-            console.error('Error fetching graph:', err);
-            setErrorMessage(`Backend connection failed: ${err.message}`);
+            setErrorMessage('Could not connect to Render backend or CognoDB. Ensure backend is running.');
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchSkillGap = async () => {
+    const loadSkillGap = async () => {
         try {
-            const res = await axios.get(
-                `${API_BASE_URL}/api/skill-gap?developer=Alex%20Johnson&role=${encodeURIComponent(selectedRole)}`
-            );
-            setSkillGap(res.data);
+            const data = await getSkillGap('Alex Johnson', selectedRole);
+            setSkillGap(data);
         } catch (err) {
-            console.error('Error fetching skill gap:', err);
+            console.error('Skill gap fetch failed:', err);
         }
     };
 
+    // vis-network initialization logic
+    useEffect(() => {
+        if (networkRef.current) {
+            const rawNodes = graphData.nodes?.length > 0 ? graphData.nodes : [];
+            const rawLinks = graphData.links?.length > 0 ? graphData.links : [];
+
+            const visNodes = rawNodes.map((node, index) => {
+                const label = node.labels?.[0] || 'Node';
+                let color = '#6366f1';
+                if (label === 'Developer') color = '#3b82f6';
+                if (label === 'Skill') color = '#10b981';
+                if (label === 'JobRole') color = '#f59e0b';
+                if (label === 'Project') color = '#ec4899';
+
+                return {
+                    id: String(node.id || index + 1),
+                    label: `${node.properties?.name || node.properties?.title || 'Entity'}\n(${label})`,
+                    color: { background: color, border: '#ffffff' },
+                    font: { color: '#ffffff', size: 13 },
+                    shape: 'box',
+                    margin: 10,
+                };
+            });
+
+            const visEdges = rawLinks.map((link, index) => ({
+                id: `e-${index}`,
+                from: String(link.source),
+                to: String(link.target),
+                label: link.type || '',
+                font: { color: '#94a3b8', size: 10, align: 'top' },
+                arrows: 'to',
+                color: { color: '#64748b' },
+            }));
+
+            const options = {
+                autoResize: true,
+                height: '100%',
+                width: '100%',
+                nodes: { borderWidth: 2, shadow: true },
+                edges: { smooth: { type: 'continuous' } },
+                physics: {
+                    enabled: true,
+                    barnesHut: { gravitationalConstant: -2000, springLength: 100 },
+                },
+                interaction: { hover: true },
+            };
+
+            const network = new Network(
+                networkRef.current,
+                { nodes: visNodes, edges: visEdges },
+                options
+            );
+
+            return () => network.destroy();
+        }
+    }, [graphData]);
+
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
-            <header className="mb-6 border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <header className="mb-6 flex flex-col md:flex-row justify-between md:items-center border-b border-slate-800 pb-4 gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-indigo-400 tracking-tight">SkillGraph Navigator</h1>
-                    <p className="text-slate-400 text-sm mt-1">
-                        AI-Powered Career Pathway & 2-Hop Graph Traversal Engine
+                    <h1 className="text-2xl font-bold text-indigo-400">SkillGraph Navigator</h1>
+                    <p className="text-slate-400 text-xs mt-1">
+                        AI-Powered Career Pathway & 2-Hop Knowledge Graph Traversal
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={fetchGraph}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors shadow-lg"
-                    >
-                        🔄 Reload Graph
-                    </button>
-                </div>
+                <button
+                    onClick={loadGraph}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-lg self-start md:self-auto"
+                >
+                    🔄 Reload Graph
+                </button>
             </header>
 
             {errorMessage && (
-                <div className="mb-6 p-4 bg-rose-950/80 border border-rose-800 rounded-lg text-rose-200 text-sm">
+                <div className="mb-4 p-3 bg-rose-950/80 border border-rose-800 rounded-lg text-rose-300 text-xs">
                     🚨 {errorMessage}
                 </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-slate-800/90 p-5 rounded-xl border border-slate-700/80 shadow-xl flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-slate-200">Interactive Knowledge Graph</h2>
-                        {loading && <span className="text-indigo-400 text-xs animate-pulse">Loading data...</span>}
+                {/* Interactive Graph View */}
+                <div className="lg:col-span-2 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-md font-bold text-slate-200">Interactive Visual Graph Canvas</h2>
+                        {loading && <span className="text-indigo-400 text-xs animate-pulse">Loading CognoDB...</span>}
                     </div>
-
                     <div
                         ref={networkRef}
-                        className="w-full h-[520px] bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-center text-slate-500"
+                        style={{ height: '500px', width: '100%' }}
+                        className="bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-center text-slate-500 text-xs"
                     >
-                        {loading ? 'Fetching Graph from CognoDB...' : graphData.nodes.length === 0 ? 'No graph data found.' : ''}
+                        {loading && 'Fetching Graph from CognoDB...'}
                     </div>
                 </div>
 
-                <div className="bg-slate-800/90 p-5 rounded-xl border border-slate-700/80 shadow-xl flex flex-col justify-between">
+                {/* 2-Hop Traversal Skill Gap Panel */}
+                <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex flex-col justify-between">
                     <div>
-                        <h2 className="text-lg font-bold text-indigo-300 mb-1">Skill Gap Analysis</h2>
-                        <div className="mb-5 bg-slate-900/60 p-3.5 rounded-lg border border-slate-800">
-                            <label className="block text-xs font-semibold text-slate-300 mb-2">Target Job Role:</label>
+                        <h2 className="text-md font-bold text-indigo-300 mb-1">Skill Gap Analysis</h2>
+                        <p className="text-[11px] text-slate-400 mb-4">
+                            2-hop parameterized query executing over <code className="text-indigo-400">REQUIRES</code> and <code className="text-indigo-400">RELATED_TO</code> paths.
+                        </p>
+
+                        <div className="mb-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Target Job Role:</label>
                             <select
                                 value={selectedRole}
                                 onChange={(e) => setSelectedRole(e.target.value)}
-                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-md py-2 px-3 text-sm"
+                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             >
                                 <option value="Graph Database Developer">Graph Database Developer</option>
                                 <option value="Full Stack Engineer">Full Stack Engineer</option>
                             </select>
                         </div>
 
-                        <div className="space-y-3 max-h-[340px] overflow-y-auto">
+                        <div className="space-y-2 max-h-[320px] overflow-y-auto">
                             {skillGap?.skillGaps?.length > 0 ? (
                                 skillGap.skillGaps.map((gap, i) => (
-                                    <div key={i} className="bg-slate-900/80 p-3.5 rounded-lg border border-rose-900/40">
-                                        <span className="font-semibold text-rose-400 text-sm">{gap.missingSkill}</span>
+                                    <div key={i} className="bg-slate-900/80 p-3 rounded-lg border border-rose-900/40 text-xs">
+                                        <span className="font-semibold text-rose-400">⚠️ Missing: {gap.missingSkill}</span>
+                                        {gap.prerequisites?.length > 0 && (
+                                            <p className="text-[11px] text-slate-400 mt-1">
+                                                💡 Prerequisites: {gap.prerequisites.join(', ')}
+                                            </p>
+                                        )}
                                     </div>
                                 ))
                             ) : (
-                                <div className="bg-emerald-950/30 p-4 rounded-lg border border-emerald-800/50 text-center">
-                                    <p className="text-emerald-400 text-sm">✨ No missing skills found!</p>
+                                <div className="bg-emerald-950/30 p-3.5 rounded-lg border border-emerald-800/50 text-center">
+                                    <p className="text-emerald-400 text-xs font-medium">✨ No missing skills found!</p>
+                                    <p className="text-[10px] text-slate-400 mt-1">Developer satisfies all role criteria.</p>
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-700 text-[10px] text-slate-400 flex justify-between">
+                        <span>Database: <strong>CognoDB Cloud</strong></span>
+                        <span>Query: <strong>Parameterized Cypher</strong></span>
                     </div>
                 </div>
             </div>
