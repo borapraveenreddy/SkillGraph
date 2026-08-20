@@ -123,6 +123,7 @@ export default function App() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
                 {/* Visual Graph View */}
+                {/* Visual Graph View */}
                 <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: '#f1f5f9' }}>Interactive Visual Graph Canvas</h2>
@@ -134,9 +135,11 @@ export default function App() {
                         style={{
                             height: '520px',
                             width: '100%',
+                            minHeight: '520px',
                             backgroundColor: '#020617',
                             borderRadius: '8px',
                             border: '1px solid #1e293b',
+                            display: 'block'
                         }}
                     />
                 </div>
@@ -153,17 +156,17 @@ export default function App() {
                             {/* Added htmlFor matching the select element's id */}
                             <label htmlFor="target-job-role" style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
                                 Target Job Role:
+                                <select
+                                    id="target-job-role"
+                                    name="targetJobRole"
+                                    value={selectedRole}
+                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                    style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '8px', fontSize: '13px', marginTop: '6px' }}
+                                >
+                                    <option value="Graph Database Developer">Graph Database Developer</option>
+                                    <option value="Full Stack Engineer">Full Stack Engineer</option>
+                                </select>
                             </label>
-                            <select
-                                id="target-job-role"
-                                name="targetJobRole"
-                                value={selectedRole}
-                                onChange={(e) => setSelectedRole(e.target.value)}
-                                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '8px', fontSize: '13px' }}
-                            >
-                                <option value="Graph Database Developer">Graph Database Developer</option>
-                                <option value="Full Stack Engineer">Full Stack Engineer</option>
-                            </select>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
