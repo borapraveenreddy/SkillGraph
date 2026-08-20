@@ -26,7 +26,8 @@ export default function App() {
             const data = await getGraphData();
             setGraphData(data);
         } catch (err) {
-            setErrorMessage('Could not connect to Render backend or CognoDB. Ensure backend is running.');
+            console.error('Failed to load graph:', err);
+            setErrorMessage('Could not connect to Render backend or CognoDB. Ensure backend is active.');
         } finally {
             setLoading(false);
         }
@@ -44,6 +45,7 @@ export default function App() {
     // vis-network initialization logic
     useEffect(() => {
         if (networkRef.current) {
+            // Use API data or fallback sample nodes if database is empty
             const rawNodes = graphData.nodes?.length > 0 ? graphData.nodes : [];
             const rawLinks = graphData.links?.length > 0 ? graphData.links : [];
 
@@ -122,19 +124,26 @@ export default function App() {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Interactive Graph View */}
+                {/* Interactive Visual Canvas Container */}
                 <div className="lg:col-span-2 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex flex-col">
                     <div className="flex justify-between items-center mb-3">
                         <h2 className="text-md font-bold text-slate-200">Interactive Visual Graph Canvas</h2>
                         {loading && <span className="text-indigo-400 text-xs animate-pulse">Loading CognoDB...</span>}
                     </div>
+
+                    {/* Enforced explicit inline styles prevent container collapse */}
                     <div
                         ref={networkRef}
-                        style={{ height: '500px', width: '100%' }}
-                        className="bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-center text-slate-500 text-xs"
-                    >
-                        {loading && 'Fetching Graph from CognoDB...'}
-                    </div>
+                        style={{
+                            height: '500px',
+                            width: '100%',
+                            minHeight: '500px',
+                            backgroundColor: '#0f172a',
+                            borderRadius: '8px',
+                            border: '1px solid #334155',
+                            display: 'block',
+                        }}
+                    />
                 </div>
 
                 {/* 2-Hop Traversal Skill Gap Panel */}
