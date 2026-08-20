@@ -150,8 +150,13 @@ export default function App() {
                         </p>
 
                         <div style={{ backgroundColor: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '16px' }}>
-                            <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>Target Job Role:</label>
+                            {/* Added htmlFor matching the select element's id */}
+                            <label htmlFor="target-job-role" style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
+                                Target Job Role:
+                            </label>
                             <select
+                                id="target-job-role"
+                                name="targetJobRole"
                                 value={selectedRole}
                                 onChange={(e) => setSelectedRole(e.target.value)}
                                 style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '8px', fontSize: '13px' }}
