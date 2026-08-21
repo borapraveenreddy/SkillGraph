@@ -25,3 +25,15 @@ export const getSkillGap = async (developer, role) => {
         throw error;
     }
 };
+
+export const getCareerPathway = async (developer, role) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/career-pathway`, {
+            params: { developer, role }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching career pathway:', error);
+        throw error;
+    }
+};

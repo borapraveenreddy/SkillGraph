@@ -150,6 +150,51 @@ app.get('/api/skill-gap', async (req, res) => {
     }
 });
 
+// Phase 4 Endpoint: Multi-hop career pathway traversal
+app.get('/api/career-pathway', async (req, res) => {
+    const { developer = 'Alex Johnson', role = 'Graph Database Developer' } = req.query;
+    const session = driver.session();
+
+    try {
+        const query = `
+      MATCH (d:Developer {name: $developer})
+      MATCH (j:JobRole {title: $role})-[:REQUIRES]->(requiredSkill:Skill)
+      OPTIONAL MATCH (d)-[:HAS_SKILL]->(devSkill:Skill)
+      WITH d, j, requiredSkill, collect(devSkill) AS devSkills
+      WHERE NOT requiredSkill IN devSkills
+      
+      // 2-hop path search: Find intermediate skills or prerequisites
+      OPTIONAL MATCH path = (knownSkill:Skill)-[:RELATED_TO*1..2]->(requiredSkill)
+      WHERE knownSkill IN devSkills
+
+      RETURN 
+        requiredSkill.name AS missingSkill,
+        collect(DISTINCT knownSkill.name) AS bridgeSkills,
+        [node IN nodes(path) | node.name] AS fullPath
+    `;
+
+        const result = await session.run(query, { developer, role });
+
+        const pathway = result.records.map((record) => ({
+            missingSkill: record.get('missingSkill'),
+            bridgeSkills: record.get('bridgeSkills'),
+            learningPath: record.get('fullPath') || [record.get('missingSkill')],
+        }));
+
+        res.json({
+            developer,
+            role,
+            totalSteps: pathway.length,
+            pathway,
+        });
+    } catch (err) {
+        console.error('Career Pathway Error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        await session.close();
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
