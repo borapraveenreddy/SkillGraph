@@ -151,6 +151,7 @@ app.get('/api/skill-gap', async (req, res) => {
 });
 
 // Phase 4 Endpoint: Multi-hop career pathway traversal
+// Phase 4 Endpoint: Multi-hop career pathway traversal
 app.get('/api/career-pathway', async (req, res) => {
     const { developer = 'Alex Johnson', role = 'Graph Database Developer' } = req.query;
     const session = driver.session();
@@ -163,28 +164,33 @@ app.get('/api/career-pathway', async (req, res) => {
       WITH d, j, requiredSkill, collect(devSkill) AS devSkills
       WHERE NOT requiredSkill IN devSkills
       
-      // 2-hop path search: Find intermediate skills or prerequisites
-      OPTIONAL MATCH path = (knownSkill:Skill)-[:RELATED_TO*1..2]->(requiredSkill)
-      WHERE knownSkill IN devSkills
+      OPTIONAL MATCH (requiredSkill)-[:RELATED_TO]->(prereq:Skill)
 
       RETURN 
         requiredSkill.name AS missingSkill,
-        collect(DISTINCT knownSkill.name) AS bridgeSkills,
-        [node IN nodes(path) | node.name] AS fullPath
+        collect(DISTINCT prereq.name) AS prerequisites
     `;
 
         const result = await session.run(query, { developer, role });
 
-        const pathway = result.records.map((record) => ({
-            missingSkill: record.get('missingSkill'),
-            bridgeSkills: record.get('bridgeSkills'),
-            learningPath: record.get('fullPath') || [record.get('missingSkill')],
-        }));
+        const pathway = result.records.map((record) => {
+            const missingSkill = record.get('missingSkill');
+            const prerequisites = record.get('prerequisites') || [];
+
+            // Construct structured step sequence
+            return {
+                targetSkill: missingSkill,
+                prerequisites: prerequisites.filter(Boolean),
+                recommendedSteps: prerequisites.length > 0
+                    ? [...prerequisites, missingSkill]
+                    : [missingSkill]
+            };
+        });
 
         res.json({
             developer,
             role,
-            totalSteps: pathway.length,
+            totalMissing: pathway.length,
             pathway,
         });
     } catch (err) {
