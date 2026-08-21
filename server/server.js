@@ -4,8 +4,16 @@ const neo4j = require('neo4j-driver');
 require('dotenv').config();
 
 const app = express();
+const cors = require('cors');
 app.use(cors());
 app.use(express.json());
+
+// Allow requests from your deployed frontend
+app.use(cors({
+    origin: '*', // Allows Vercel frontend to fetch graph data freely
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 const PORT = process.env.PORT || 5000;
 
