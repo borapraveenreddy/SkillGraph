@@ -23,10 +23,17 @@ export default function App() {
         setErrorMessage(null);
         try {
             const data = await getGraphData();
-            setGraphData(data);
+            console.log('Raw API Response received in App.jsx:', data);
+
+            // Support both top-level arrays and wrapped data structures
+            const fetchedNodes = data?.nodes || data?.data?.nodes || [];
+            const fetchedLinks = data?.links || data?.data?.links || [];
+
+            console.log(`Parsed ${fetchedNodes.length} nodes and ${fetchedLinks.length} links.`);
+            setGraphData({ nodes: fetchedNodes, links: fetchedLinks });
         } catch (err) {
-            console.error('Failed to load graph:', err);
-            setErrorMessage('Could not connect to Render backend or CognoDB.');
+            console.error('Failed to fetch graph data:', err);
+            setErrorMessage('Could not load graph data from backend server.');
         } finally {
             setLoading(false);
         }
@@ -41,19 +48,21 @@ export default function App() {
         }
     };
 
-    // Callback Ref guarantees the DOM node is fully mounted before vis-network initializes
+    // Callback ref guarantees vis-network mounts properly when DOM node is ready
     const containerRef = useCallback(
         (node) => {
-            if (node !== null && graphData.nodes?.length > 0) {
+            if (node !== null && graphData.nodes && graphData.nodes.length > 0) {
+                console.log('Initializing vis-network with nodes:', graphData.nodes);
+
                 const visNodes = graphData.nodes.map((n) => {
-                    const label = n.labels?.[0] || 'Node';
+                    const label = n.labels?.[0] || 'Entity';
                     let color = '#6366f1';
                     if (label === 'Developer') color = '#3b82f6';
                     if (label === 'Skill') color = '#10b981';
                     if (label === 'JobRole') color = '#f59e0b';
                     if (label === 'Project') color = '#ec4899';
 
-                    const nodeName = n.properties?.name || n.properties?.title || 'Entity';
+                    const nodeName = n.properties?.name || n.properties?.title || 'Node';
 
                     return {
                         id: String(n.id),
@@ -122,7 +131,7 @@ export default function App() {
                 <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: '#f1f5f9' }}>Interactive Visual Graph Canvas</h2>
-                        {loading && <span style={{ color: '#818cf8', fontSize: '12px' }}>Loading...</span>}
+                        {loading && <span style={{ color: '#818cf8', fontSize: '12px' }}>Loading graph data...</span>}
                     </div>
 
                     <div
@@ -176,7 +185,12 @@ export default function App() {
                             {skillGap?.skillGaps?.length > 0 ? (
                                 skillGap.skillGaps.map((gap, i) => (
                                     <div key={i} style={{ backgroundColor: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #881337', fontSize: '12px', color: '#fb7185' }}>
-                                        ⚠️ Missing: {gap.missingSkill}
+                                        <strong>⚠️ Missing:</strong> {gap.missingSkill}
+                                        {gap.prerequisites?.length > 0 && (
+                                            <div style={{ marginTop: '4px', color: '#94a3b8', fontSize: '11px' }}>
+                                                💡 Prerequisites: {gap.prerequisites.join(', ')}
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             ) : (
